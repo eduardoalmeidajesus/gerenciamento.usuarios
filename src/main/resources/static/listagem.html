@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listagem de Usuários</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Lista de Usuários</h1>
+            <p>Visualize todos os usuários cadastrados no sistema</p>
+        </div>
+
+        <div class="nav-buttons">
+            <a href="index.html" class="btn btn-secondary">🏠 Página Inicial</a>
+            <a href="cadastro.html" class="btn btn-primary">📝 Novo Usuário</a>
+        </div>
+
+        <div class="card">
+            <div id="loading" class="alert">Carregando usuários...</div>
+            <div id="alert" class="alert hidden"></div>
+
+            <table class="table hidden" id="tabelaUsuarios">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>E-mail</th>
+                        <th>Idade</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaCorpo"></tbody>
+            </table>
+
+            <div id="semUsuarios" class="alert hidden">
+                Nenhum usuário cadastrado.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function carregarUsuarios() {
+            const loading = document.getElementById('loading');
+            const tabela = document.getElementById('tabelaUsuarios');
+            const tabelaCorpo = document.getElementById('tabelaCorpo');
+            const semUsuarios = document.getElementById('semUsuarios');
+            const alert = document.getElementById('alert');
+
+            loading.classList.remove('hidden');
+            tabela.classList.add('hidden');
+            semUsuarios.classList.add('hidden');
+            alert.classList.add('hidden');
+
+            fetch('/api/usuarios')
+                .then(res => res.json())
+                .then(resposta => {
+                    loading.classList.add('hidden');
+
+                    const usuarios = Array.isArray(resposta)
+                        ? resposta
+                        : resposta.usuarios;
+
+                    if (!usuarios || usuarios.length === 0) {
+                        semUsuarios.classList.remove('hidden');
+                        tabelaCorpo.innerHTML = '';
+                        return;
+                    }
+
+                    tabelaCorpo.innerHTML = '';
+
+                    usuarios.forEach(usuario => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${usuario.id}</td>
+                            <td>${usuario.nome}</td>
+                            <td>${usuario.email}</td>
+                            <td>${usuario.idade}</td>
+                            <td>
+                                <button
+                                    class="btn btn-danger"
+                                    onclick="removerUsuario('${usuario.id}')">
+                                    Excluir
+                                </button>
+                            </td>
+                        `;
+                        tabelaCorpo.appendChild(row);
+                    });
+
+                    tabela.classList.remove('hidden');
+                })
+                .catch(() => {
+                    loading.classList.add('hidden');
+                    alert.className = 'alert alert-error';
+                    alert.textContent = 'Erro ao carregar usuários';
+                    alert.classList.remove('hidden');
+                });
+        }
+
+        function removerUsuario(id) {
+            if (!confirm('Deseja realmente excluir este usuário?')) {
+                return;
+            }
+
+            fetch('/api/usuarios/' + id, {
+                method: 'DELETE'
+            }).then(() => carregarUsuarios());
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarUsuarios);
+    </script>
+</body>
+</html>
