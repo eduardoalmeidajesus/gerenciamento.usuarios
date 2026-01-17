@@ -1,2 +1,1 @@
-"# gerenciamento.usuarios" 
 "# sistema.usuarios" 
