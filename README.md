@@ -46,7 +46,7 @@ A interface inicia em uma **página principal**, que apresenta o sistema e forne
 
 1. Clonar o repositório:
    ```bash
-   git clone https://github.com/seu-usuario/webapi-usuarios.git
+   git clone https://github.com/eduardoalmeidajesus/gerenciamento.usuarios
 
 2. Acessar a pasta do projeto:
    ```bash
