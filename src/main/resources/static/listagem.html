@@ -10,7 +10,7 @@
     <div class="container">
         <div class="header">
             <h1>Lista de Usuários</h1>
-            <p>Visualize todos os usuários cadastrados no sistema</p>
+            <p>Visualize, edite e remova usuários cadastrados</p>
         </div>
 
         <div class="nav-buttons">
@@ -18,8 +18,18 @@
             <a href="cadastro.html" class="btn btn-primary">📝 Novo Usuário</a>
         </div>
 
+        <!-- Busca por nome -->
         <div class="card">
-            <div id="loading" class="alert">Carregando usuários...</div>
+            <input
+                type="text"
+                id="buscaNome"
+                placeholder="🔍 Buscar usuário pelo nome..."
+                onkeyup="filtrarUsuarios()"
+                style="width: 100%;"
+            >
+        </div>
+
+        <div class="card">
             <div id="alert" class="alert hidden"></div>
 
             <table class="table hidden" id="tabelaUsuarios">
@@ -36,77 +46,109 @@
             </table>
 
             <div id="semUsuarios" class="alert hidden">
-                Nenhum usuário cadastrado.
+                Nenhum usuário encontrado.
             </div>
         </div>
     </div>
 
     <script>
+        let usuariosCache = [];
+
         function carregarUsuarios() {
-            const loading = document.getElementById('loading');
-            const tabela = document.getElementById('tabelaUsuarios');
-            const tabelaCorpo = document.getElementById('tabelaCorpo');
-            const semUsuarios = document.getElementById('semUsuarios');
-            const alert = document.getElementById('alert');
-
-            loading.classList.remove('hidden');
-            tabela.classList.add('hidden');
-            semUsuarios.classList.add('hidden');
-            alert.classList.add('hidden');
-
             fetch('/api/usuarios')
                 .then(res => res.json())
-                .then(resposta => {
-                    loading.classList.add('hidden');
-
-                    const usuarios = Array.isArray(resposta)
-                        ? resposta
-                        : resposta.usuarios;
-
-                    if (!usuarios || usuarios.length === 0) {
-                        semUsuarios.classList.remove('hidden');
-                        tabelaCorpo.innerHTML = '';
-                        return;
-                    }
-
-                    tabelaCorpo.innerHTML = '';
-
-                    usuarios.forEach(usuario => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${usuario.id}</td>
-                            <td>${usuario.nome}</td>
-                            <td>${usuario.email}</td>
-                            <td>${usuario.idade}</td>
-                            <td>
-                                <button
-                                    class="btn btn-danger"
-                                    onclick="removerUsuario('${usuario.id}')">
-                                    Excluir
-                                </button>
-                            </td>
-                        `;
-                        tabelaCorpo.appendChild(row);
-                    });
-
-                    tabela.classList.remove('hidden');
+                .then(usuarios => {
+                    usuariosCache = usuarios;
+                    preencherTabela(usuarios);
                 })
-                .catch(() => {
-                    loading.classList.add('hidden');
-                    alert.className = 'alert alert-error';
-                    alert.textContent = 'Erro ao carregar usuários';
-                    alert.classList.remove('hidden');
-                });
+                .catch(() => mostrarErro('Erro ao carregar usuários'));
         }
 
-        function removerUsuario(id) {
-            if (!confirm('Deseja realmente excluir este usuário?')) {
+        function filtrarUsuarios() {
+            const termo = document.getElementById('buscaNome').value.toLowerCase();
+
+            const filtrados = usuariosCache.filter(u =>
+                u.nome.toLowerCase().includes(termo)
+            );
+
+            preencherTabela(filtrados);
+        }
+
+        function preencherTabela(usuarios) {
+            const tabela = document.getElementById('tabelaUsuarios');
+            const corpo = document.getElementById('tabelaCorpo');
+            const semUsuarios = document.getElementById('semUsuarios');
+
+            corpo.innerHTML = '';
+
+            if (!usuarios || usuarios.length === 0) {
+                tabela.classList.add('hidden');
+                semUsuarios.classList.remove('hidden');
                 return;
             }
 
+            usuarios.forEach(usuario => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${usuario.id}</td>
+                    <td><input value="${usuario.nome}" disabled></td>
+                    <td><input value="${usuario.email}" disabled></td>
+                    <td><input type="number" value="${usuario.idade}" disabled></td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="editar(this)">✏️</button>
+                        <button class="btn btn-primary hidden" onclick="salvar(this, '${usuario.id}')">💾</button>
+                        <button class="btn btn-danger" onclick="removerUsuario('${usuario.id}')">🗑️</button>
+                    </td>
+                `;
+                corpo.appendChild(tr);
+            });
+
+            tabela.classList.remove('hidden');
+            semUsuarios.classList.add('hidden');
+        }
+
+        function editar(botao) {
+            const tr = botao.closest('tr');
+            tr.querySelectorAll('input').forEach(i => i.disabled = false);
+            botao.classList.add('hidden');
+            tr.querySelector('.btn.btn-primary').classList.remove('hidden');
+        }
+
+        function salvar(botao, id) {
+            const tr = botao.closest('tr');
+            const inputs = tr.querySelectorAll('input');
+
+            const usuario = {
+                nome: inputs[0].value,
+                email: inputs[1].value,
+                idade: Number(inputs[2].value)
+            };
+
             fetch('/api/usuarios/' + id, {
-                method: 'DELETE'
-            }).then(() => carregarUsuarios());
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(usuario)
+            })
+            .then(() => {
+                inputs.forEach(i => i.disabled = true);
+                botao.classList.add('hidden');
+                tr.querySelector('.btn.btn-secondary').classList.remove('hidden');
+            })
+            .catch(() => mostrarErro('Erro ao atualizar usuário'));
+        }
+
+        function removerUsuario(id) {
+            if (!confirm('Deseja remover este usuário?')) return;
+
+            fetch('/api/usuarios/' + id, { method: 'DELETE' })
+                .then(() => carregarUsuarios());
+        }
+
+        function mostrarErro(msg) {
+            const alert = document.getElementById('alert');
+            alert.className = 'alert alert-error';
+            alert.textContent = msg;
+            alert.classList.remove('hidden');
         }
 
         document.addEventListener('DOMContentLoaded', carregarUsuarios);
